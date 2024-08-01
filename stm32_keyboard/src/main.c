@@ -23,10 +23,14 @@
 #include "usb_device.h"
 #include "usbd_hid.h"
 
+#define NORMAL_KEY 1  
+#define MEDIA_KEY 2 
+
 extern USBD_HandleTypeDef hUsbDeviceFS;
 
 typedef struct 
 {
+	uint8_t ID;
  	uint8_t MODIFIER;
 	uint8_t RESERVED;
 	uint8_t KEYCODE1;
@@ -34,8 +38,15 @@ typedef struct
 	uint8_t KEYCODE3;
 	uint8_t KEYCODE4;
 	uint8_t KEYCODE5;
-	uint8_t KEYCODE6;
 } keyboardReportDes;
+
+typedef struct 
+{
+	uint8_t ID;
+ 	uint8_t MEDIA;
+} keyboardMediaDes;
+
+
 
 char msg_buff[100] = {0};
 
@@ -54,12 +65,17 @@ A\B |  0  |  1  |  2  |  3  |  4  |  5  |  6  |  7  |  8  |  9  |  10  |  11  | 
 7   |  F11|  F10|     |  [  |     |     |     |  -  |  9  |  7  | Esc  |  ins |      |      |      |  5   |
 */
 
+
+
 typedef struct
 {
 	int Port;
 	uint16_t PinNum;
 	uint8_t KEYCODE1;
 	uint8_t MODIFIER;
+	uint8_t FUNK_KEYCODE;
+	uint8_t FUNK_MEDIA;
+	uint8_t FUNK_KEY;
 } KeyDesk;
 
 enum GPIO_PORT
@@ -68,100 +84,101 @@ enum GPIO_PORT
 	PORT_B
 };
 
-KeyDesk Key_F7 = {PORT_B, GPIO_PIN_0, 0x40, 0b00000000};
-KeyDesk Pause = {PORT_B, GPIO_PIN_1, 0x48, 0b00000000};
-KeyDesk LCtrl = {PORT_B, GPIO_PIN_4, 0x00, 0b00000001};
-KeyDesk Menu = {PORT_B, GPIO_PIN_6, 0x65, 0b00000000};
-KeyDesk Key_M = {PORT_B, GPIO_PIN_7, 0x10, 0b00000000};
-KeyDesk Key_dash = {PORT_B, GPIO_PIN_8, 0x31, 0b00000000};
-KeyDesk Space = {PORT_B, GPIO_PIN_9, 0x2c, 0b00000000};
-KeyDesk Key_F6 = {PORT_B, GPIO_PIN_10, 0x3F, 0b00000000};
-KeyDesk Left = {PORT_B, GPIO_PIN_11, 0x50, 0b00000000};
-KeyDesk LAlt = {PORT_B, GPIO_PIN_13, 0x00, 0b00000100};
-KeyDesk Win = {PORT_B, GPIO_PIN_14, 0x00, 0b00001000};
+KeyDesk Fn = {PORT_A, GPIO_PIN_8, 0x00, 0b00000000, 0x00, 0b00000000, 0x01};
+KeyDesk Key_F7 = {PORT_B, GPIO_PIN_0, 0x40, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Pause = {PORT_B, GPIO_PIN_1, 0x48, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk LCtrl = {PORT_B, GPIO_PIN_4, 0x00, 0b00000001, 0x00, 0b00000000, 0x00};
+KeyDesk Menu = {PORT_B, GPIO_PIN_6, 0x65, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_M = {PORT_B, GPIO_PIN_7, 0x10, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_dash = {PORT_B, GPIO_PIN_8, 0x31, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Space = {PORT_B, GPIO_PIN_9, 0x2c, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_F6 = {PORT_B, GPIO_PIN_10, 0x3F, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Left = {PORT_B, GPIO_PIN_11, 0x50, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk LAlt = {PORT_B, GPIO_PIN_13, 0x00, 0b00000100, 0x00, 0b00000000, 0x00};
+KeyDesk Win = {PORT_B, GPIO_PIN_14, 0x00, 0b00001000, 0x00, 0b00000000, 0x00};
 
-KeyDesk Key_F3 = {PORT_B, GPIO_PIN_0, 0x3c, 0b00000000};
-KeyDesk Up = {PORT_B, GPIO_PIN_1, 0x52, 0b00000000};
-KeyDesk Key_Dot = {PORT_B, GPIO_PIN_3, 0x37, 0b00000000};
-KeyDesk RCtrl = {PORT_B, GPIO_PIN_4, 0x00, 0b00010000};
-KeyDesk LShif = {PORT_B, GPIO_PIN_5, 0x00, 0b00000010};
-KeyDesk Key_K = {PORT_B, GPIO_PIN_7, 0x0e, 0b00000000};
-KeyDesk Key_N = {PORT_B, GPIO_PIN_8, 0x11, 0b00000000};
-KeyDesk Key_V = {PORT_B, GPIO_PIN_9, 0x19, 0b00000000};
-KeyDesk Key_F2 = {PORT_B, GPIO_PIN_10, 0x3b, 0b00000000};
-KeyDesk Right = {PORT_B, GPIO_PIN_11, 0x4f, 0b00000000};
-KeyDesk Key_D = {PORT_B, GPIO_PIN_15, 0x07, 0b00000000};
-KeyDesk Key_Z = {PORT_A, GPIO_PIN_8, 0x1d, 0b00000000};
+KeyDesk Key_F3 = {PORT_B, GPIO_PIN_0, 0x3c, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Up = {PORT_B, GPIO_PIN_1, 0x52, 0b00000000, 0x00, 0b00100000, 0x00};
+KeyDesk Key_Dot = {PORT_B, GPIO_PIN_3, 0x37, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk RCtrl = {PORT_B, GPIO_PIN_4, 0x00, 0b00010000, 0x00, 0b00000000, 0x00};
+KeyDesk LShif = {PORT_B, GPIO_PIN_5, 0x00, 0b00000010, 0x00, 0b00000000, 0x00};
+KeyDesk Key_K = {PORT_B, GPIO_PIN_7, 0x0e, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_N = {PORT_B, GPIO_PIN_8, 0x11, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_V = {PORT_B, GPIO_PIN_9, 0x19, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_F2 = {PORT_B, GPIO_PIN_10, 0x3b, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Right = {PORT_B, GPIO_PIN_11, 0x4f, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_D = {PORT_B, GPIO_PIN_15, 0x07, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_Z = {PORT_A, GPIO_PIN_8, 0x1d, 0b00000000, 0x00, 0b00000000, 0x00};
 
-KeyDesk Key_1 = {PORT_B, GPIO_PIN_0, 0x1e, 0b00000000};
-KeyDesk Prtsc = {PORT_B, GPIO_PIN_1, 0x46, 0b00000000};
-KeyDesk Comma = {PORT_B, GPIO_PIN_7, 0x36, 0b00000000};
-KeyDesk Key_B = {PORT_B, GPIO_PIN_8, 0x05, 0b00000000};
-KeyDesk Key_C = {PORT_B, GPIO_PIN_9, 0x06, 0b00000000};
-KeyDesk Capslk = {PORT_B, GPIO_PIN_10, 0x39, 0b00000000};
-KeyDesk Down = {PORT_B, GPIO_PIN_11, 0x51, 0b00000000};
-KeyDesk RAlt = {PORT_B, GPIO_PIN_13, 0x00, 0b01000000};
-KeyDesk Key_X = {PORT_B, GPIO_PIN_15, 0x1b, 0b00000000};
+KeyDesk Key_1 = {PORT_B, GPIO_PIN_0, 0x1e, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Prtsc = {PORT_B, GPIO_PIN_1, 0x46, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Comma = {PORT_B, GPIO_PIN_7, 0x36, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_B = {PORT_B, GPIO_PIN_8, 0x05, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_C = {PORT_B, GPIO_PIN_9, 0x06, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Capslk = {PORT_B, GPIO_PIN_10, 0x39, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Down = {PORT_B, GPIO_PIN_11, 0x51, 0b00000000, 0x00, 0b01000000, 0x00};
+KeyDesk RAlt = {PORT_B, GPIO_PIN_13, 0x00, 0b01000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_X = {PORT_B, GPIO_PIN_15, 0x1b, 0b00000000, 0x00, 0b00000000, 0x00};
 
-KeyDesk Key_F4 = {PORT_B, GPIO_PIN_0, 0x3d, 0b00000000};
-KeyDesk Key_2 = {PORT_B, GPIO_PIN_1, 0x1f, 0b00000000};
-KeyDesk Key_Slash = {PORT_B, GPIO_PIN_3, 0x38, 0b00000000};
-KeyDesk RShif = {PORT_B, GPIO_PIN_5, 0x00, 0b00100000};
-KeyDesk Key_L = {PORT_B, GPIO_PIN_7, 0x0f, 0b00000000};
-KeyDesk Key_J = {PORT_B, GPIO_PIN_8, 0x0d, 0b00000000};
-KeyDesk Key_G = {PORT_B, GPIO_PIN_9, 0x0a, 0b00000000};
-KeyDesk Key_F1 = {PORT_B, GPIO_PIN_10, 0x3a, 0b00000000};
-KeyDesk PgDw = {PORT_B, GPIO_PIN_11, 0x4e, 0b00000000};
-KeyDesk Key_F = {PORT_B, GPIO_PIN_15, 0x09, 0b00000000};
-KeyDesk Key_A = {PORT_A, GPIO_PIN_8, 0x04, 0b00000000};
+KeyDesk Key_F4 = {PORT_B, GPIO_PIN_0, 0x3d, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_2 = {PORT_B, GPIO_PIN_1, 0x1f, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_Slash = {PORT_B, GPIO_PIN_3, 0x38, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk RShif = {PORT_B, GPIO_PIN_5, 0x00, 0b00100000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_L = {PORT_B, GPIO_PIN_7, 0x0f, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_J = {PORT_B, GPIO_PIN_8, 0x0d, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_G = {PORT_B, GPIO_PIN_9, 0x0a, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_F1 = {PORT_B, GPIO_PIN_10, 0x3a, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk PgDw = {PORT_B, GPIO_PIN_11, 0x4e, 0b00000000, 0x4d, 0b00000000, 0x00};
+KeyDesk Key_F = {PORT_B, GPIO_PIN_15, 0x09, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_A = {PORT_A, GPIO_PIN_8, 0x04, 0b00000000, 0x00, 0b00000000, 0x00};
 
-KeyDesk Key_Q = {PORT_B, GPIO_PIN_0, 0x14, 0b00000000};
-KeyDesk Key_3 = {PORT_B, GPIO_PIN_1, 0x20, 0b00000000};
-KeyDesk Key_semicolon = {PORT_B, GPIO_PIN_3, 0x33, 0b00000000};
-KeyDesk Enter = {PORT_B, GPIO_PIN_6, 0x28, 0b00000000};
-KeyDesk Key_I = {PORT_B, GPIO_PIN_7, 0x0c, 0b00000000};
-KeyDesk Key_Y = {PORT_B, GPIO_PIN_8, 0x1c, 0b00000000};
-KeyDesk Key_H = {PORT_B, GPIO_PIN_9, 0x0b, 0b00000000};
-KeyDesk Key_Tab = {PORT_B, GPIO_PIN_10, 0x2b, 0b00000000};
-KeyDesk PgUp = {PORT_B, GPIO_PIN_11, 0x4b, 0b00000000};
-KeyDesk Key_E = {PORT_B, GPIO_PIN_15, 0x08, 0b00000000};
-KeyDesk Key_S = {PORT_A, GPIO_PIN_8, 0x16, 0b00000000};
+KeyDesk Key_Q = {PORT_B, GPIO_PIN_0, 0x14, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_3 = {PORT_B, GPIO_PIN_1, 0x20, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_semicolon = {PORT_B, GPIO_PIN_3, 0x33, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Enter = {PORT_B, GPIO_PIN_6, 0x28, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_I = {PORT_B, GPIO_PIN_7, 0x0c, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_Y = {PORT_B, GPIO_PIN_8, 0x1c, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_H = {PORT_B, GPIO_PIN_9, 0x0b, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_Tab = {PORT_B, GPIO_PIN_10, 0x2b, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk PgUp = {PORT_B, GPIO_PIN_11, 0x4b, 0b00000000, 0x4a, 0b00000000, 0x00};
+KeyDesk Key_E = {PORT_B, GPIO_PIN_15, 0x08, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_S = {PORT_A, GPIO_PIN_8, 0x16, 0b00000000, 0x00, 0b00000000, 0x00};
 
-KeyDesk Key_F12 = {PORT_B, GPIO_PIN_0, 0x45, 0b00000000};
-KeyDesk Key_F9 = {PORT_B, GPIO_PIN_1, 0x42, 0b00000000};
-KeyDesk Key_P = {PORT_B, GPIO_PIN_3, 0x13, 0b00000000};
-KeyDesk Key_equals = {PORT_B, GPIO_PIN_6, 0x2e, 0b00000000};
-KeyDesk Key_0 = {PORT_B, GPIO_PIN_7, 0x27, 0b00000000};
-KeyDesk Key_8 = {PORT_B, GPIO_PIN_8, 0x25, 0b00000000};
-KeyDesk Key_6 = {PORT_B, GPIO_PIN_9, 0x23, 0b00000000};
-KeyDesk Key_tilde = {PORT_B, GPIO_PIN_10, 0x35, 0b00000000};
-KeyDesk Key_del = {PORT_B, GPIO_PIN_11, 0x4c, 0b00000000};
-KeyDesk Key_4 = {PORT_B, GPIO_PIN_15, 0x21, 0b00000000};
+KeyDesk Key_F12 = {PORT_B, GPIO_PIN_0, 0x45, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_F9 = {PORT_B, GPIO_PIN_1, 0x42, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_P = {PORT_B, GPIO_PIN_3, 0x13, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_equals = {PORT_B, GPIO_PIN_6, 0x2e, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_0 = {PORT_B, GPIO_PIN_7, 0x27, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_8 = {PORT_B, GPIO_PIN_8, 0x25, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_6 = {PORT_B, GPIO_PIN_9, 0x23, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_tilde = {PORT_B, GPIO_PIN_10, 0x35, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_del = {PORT_B, GPIO_PIN_11, 0x4c, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_4 = {PORT_B, GPIO_PIN_15, 0x21, 0b00000000, 0x00, 0b00000000, 0x00};
 
-KeyDesk Key_F8 = {PORT_B, GPIO_PIN_0, 0x41, 0b00000000};
-KeyDesk Bacsp = {PORT_B, GPIO_PIN_1, 0x2a, 0b00000000};
-KeyDesk Key_quotes = {PORT_B, GPIO_PIN_3, 0x34, 0b00000000};
-KeyDesk Rbracket = {PORT_B, GPIO_PIN_6, 0x30, 0b00000000}; 
-KeyDesk Key_O = {PORT_B, GPIO_PIN_7, 0x12, 0b00000000};
-KeyDesk Key_U = {PORT_B, GPIO_PIN_8, 0x18, 0b00000000};
-KeyDesk Key_T = {PORT_B, GPIO_PIN_9, 0x17, 0b00000000};
-KeyDesk Key_F5 = {PORT_B, GPIO_PIN_10, 0x3e, 0b00000000};
-KeyDesk Key_R = {PORT_B, GPIO_PIN_15, 0x15, 0b00000000};
-KeyDesk Key_W = {PORT_A, GPIO_PIN_8, 0x1a, 0b00000000};
+KeyDesk Key_F8 = {PORT_B, GPIO_PIN_0, 0x41, 0b00000000, 0x00, 0b00010000, 0x00};
+KeyDesk Bacsp = {PORT_B, GPIO_PIN_1, 0x2a, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_quotes = {PORT_B, GPIO_PIN_3, 0x34, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Rbracket = {PORT_B, GPIO_PIN_6, 0x30, 0b00000000, 0x00, 0b00000000, 0x00}; 
+KeyDesk Key_O = {PORT_B, GPIO_PIN_7, 0x12, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_U = {PORT_B, GPIO_PIN_8, 0x18, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_T = {PORT_B, GPIO_PIN_9, 0x17, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_F5 = {PORT_B, GPIO_PIN_10, 0x3e, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_R = {PORT_B, GPIO_PIN_15, 0x15, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_W = {PORT_A, GPIO_PIN_8, 0x1a, 0b00000000, 0x00, 0b00000000, 0x00};
 
-KeyDesk Key_F11 = {PORT_B, GPIO_PIN_0, 0x44, 0b00000000};
-KeyDesk Key_F10 = {PORT_B, GPIO_PIN_1, 0x43, 0b00000000};
-KeyDesk Lbracket = {PORT_B, GPIO_PIN_3, 0x2f, 0b00000000};
-KeyDesk Key_Minus = {PORT_B, GPIO_PIN_7, 0x2d, 0b00000000};
-KeyDesk Key_9 = {PORT_B, GPIO_PIN_8, 0x26, 0b00000000};
-KeyDesk Key_7 = {PORT_B, GPIO_PIN_9, 0x24, 0b00000000};
-KeyDesk Key_Esc = {PORT_B, GPIO_PIN_10, 0x29, 0b00000000};
-KeyDesk Key_Ins = {PORT_B, GPIO_PIN_11, 0x49, 0b00000000};
-KeyDesk Key_5 = {PORT_B, GPIO_PIN_15, 0x22, 0b00000000};
+KeyDesk Key_F11 = {PORT_B, GPIO_PIN_0, 0x44, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_F10 = {PORT_B, GPIO_PIN_1, 0x43, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Lbracket = {PORT_B, GPIO_PIN_3, 0x2f, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_Minus = {PORT_B, GPIO_PIN_7, 0x2d, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_9 = {PORT_B, GPIO_PIN_8, 0x26, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_7 = {PORT_B, GPIO_PIN_9, 0x24, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_Esc = {PORT_B, GPIO_PIN_10, 0x29, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_Ins = {PORT_B, GPIO_PIN_11, 0x49, 0b00000000, 0x00, 0b00000000, 0x00};
+KeyDesk Key_5 = {PORT_B, GPIO_PIN_15, 0x22, 0b00000000, 0x00, 0b00000000, 0x00};
 
 KeyDesk* KeyRows[8][12] = 
 {
-	{&Key_F7, &Pause, &LCtrl, &Menu, &Key_M, &Key_dash, &Space, &Key_F6, &Left, &LAlt, &Win, NULL},
+	{&Fn, &Key_F7, &Pause, &LCtrl, &Menu, &Key_M, &Key_dash, &Space, &Key_F6, &Left, &LAlt, &Win},
 	{&Key_F3, &Up, &Key_Dot, &RCtrl, &LShif, &Key_K, &Key_N, &Key_V, &Key_F2, &Right, &Key_D, &Key_Z},
 	{&Key_1, &Prtsc, &Comma, &Key_B, &Key_C, &Capslk, &Down, &RAlt, &Key_X, NULL, NULL, NULL},
 	{&Key_F4, &Key_2, &Key_Slash, &RShif, &Key_L, &Key_J, &Key_G, &Key_F1, &PgDw, &Key_F, &Key_A, NULL},
@@ -172,13 +189,17 @@ KeyDesk* KeyRows[8][12] =
 };
 
 uint8_t IsKeyPressed = 0;
-uint32_t  TimmeFromPress = 0;
+uint8_t IsMediaKeyPressed = 0;
+uint32_t  TimmeFromDataSend = 0;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 void KeyBoardPrint(char *data,uint16_t length);
 void AddKey(keyboardReportDes *Msg, u_int8_t KEYCODE, int num);
+
+
+
 
 /**
 	* @brief  The application entry point.
@@ -202,23 +223,30 @@ int main(void)
 	
 	while (1)
 	{
-	 
-		keyboardReportDes HIDkeyBoardMessage = {0,0,0,0,0,0,0,0};
+		uint8_t Keys[5] = {0,0,0,0,0};
+		uint8_t Modifer = 0;
+		keyboardMediaDes HIDMediaMessage = {MEDIA_KEY,0};
 
 		uint8_t KeyNum = 0;
 		uint8_t KeyMod = 0;
+		uint8_t MediaKeyPress = 0;
+		uint8_t FnPress = 0;
 		GPIO_PinState CurentState;
 
-		
-		
 		for (int i = 0; i < 8; i++)
 		{
+			
 			HAL_GPIO_WritePin(GPIOA, Ports[i], GPIO_PIN_RESET);
-			HAL_Delay(5);
+			
+			HAL_Delay(7);
+			
 			for (int j = 0; j < 12; j++)
 			{
+				
+				
 				if (KeyRows[i][j])
 				{
+					
 					if (KeyRows[i][j]->Port == PORT_A)
 					{
 						CurentState = HAL_GPIO_ReadPin(GPIOA, KeyRows[i][j]->PinNum);
@@ -230,45 +258,78 @@ int main(void)
 					
 					if (!CurentState)
 					{
-						if (KeyRows[i][j]->KEYCODE1)
+						if (!FnPress)
 						{
-							AddKey(&HIDkeyBoardMessage,KeyRows[i][j]->KEYCODE1,KeyNum);
-							KeyNum++;
+							if (KeyRows[i][j]->KEYCODE1)
+							{
+								Keys[KeyNum] = KeyRows[i][j]->KEYCODE1;
+								if (KeyNum < 4) KeyNum++;
 
-							
+							}
+							else if (KeyRows[i][j]->MODIFIER)
+							{
+								Modifer |= KeyRows[i][j]->MODIFIER;
+								KeyMod = 1;
+							}
+							else if (KeyRows[i][j]->FUNK_KEY) 
+							{
+								FnPress = 1;
+							}
 						}
-						else if (KeyRows[i][j]->MODIFIER)
+						else
 						{
-							HIDkeyBoardMessage.MODIFIER |= KeyRows[i][j]->MODIFIER;
-							KeyMod = 1;
-						} 
-					
+							if (KeyRows[i][j]->FUNK_KEYCODE)
+							{
+								Keys[KeyNum] = KeyRows[i][j]->FUNK_KEYCODE;
+								if (KeyNum < 4) KeyNum++;
+							}
+							else if (KeyRows[i][j]->FUNK_MEDIA)
+							{
+								HIDMediaMessage.MEDIA |= KeyRows[i][j]->FUNK_MEDIA;
+								MediaKeyPress = 1;
+							}
+						}
+						
 					} 
 				}
 
 			}
+			
 			HAL_GPIO_WritePin(GPIOA, Ports[i], GPIO_PIN_SET);
 		} 
 		
 		
-			
+		
 		if(KeyNum || KeyMod)
 		{
-			USBD_HID_SendReport(&hUsbDeviceFS, (uint8_t *)&HIDkeyBoardMessage, sizeof(HIDkeyBoardMessage));
+			keyboardReportDes Message = {NORMAL_KEY,Modifer,0,Keys[0],Keys[1],Keys[2],Keys[3],Keys[4]};
+			USBD_HID_SendReport(&hUsbDeviceFS, (uint8_t *)&Message, sizeof(Message));
 			IsKeyPressed = 1;
-			TimmeFromPress = HAL_GetTick();
 				
 		}
-		else if (IsKeyPressed && ((HAL_GetTick() - TimmeFromPress) > 50))
+		else if (MediaKeyPress)
 		{
-			
-			USBD_HID_SendReport(&hUsbDeviceFS, (uint8_t *)&HIDkeyBoardMessage, sizeof(HIDkeyBoardMessage));
-			IsKeyPressed = 0;
-			
+			USBD_HID_SendReport(&hUsbDeviceFS, (uint8_t *)&HIDMediaMessage, sizeof(HIDMediaMessage));
+			IsMediaKeyPressed = 1;
 		}
+		else if (IsKeyPressed)
+		{
+			keyboardReportDes BlankKey = {NORMAL_KEY,0,0,0,0,0,0,0};
+			USBD_HID_SendReport(&hUsbDeviceFS, (uint8_t *)&BlankKey, sizeof(BlankKey));
+			IsKeyPressed = 0;
+		}
+		else if (IsMediaKeyPressed)
+		{
+			USBD_HID_SendReport(&hUsbDeviceFS, (uint8_t *)&HIDMediaMessage, sizeof(HIDMediaMessage));
+			IsMediaKeyPressed = 0;
+		}
+
+			
+		
 	
 	}
 }
+
 
 /**
 	* @brief System Clock Configuration
@@ -405,7 +466,7 @@ void KeyBoardPrint(char *data,uint16_t length)
 	//KeyBoardPrint(msg_buff, strlen(msg_buff));
 
 
-	keyboardReportDes keyBoardHIDsub = {0,0,0,0,0,0,0,0};
+	keyboardReportDes keyBoardHIDsub = {NORMAL_KEY,0,0,0,0,0,0,0};
 
 	for(uint16_t count=0;count<length;count++)
 	{
@@ -436,21 +497,5 @@ void KeyBoardPrint(char *data,uint16_t length)
 	}
 }
 
-void AddKey(keyboardReportDes *Msg, u_int8_t KEYCODE, int num)
-{
-	switch(num)
-	{
-		case 0:
 
-			Msg->KEYCODE1 = KEYCODE;
-			break;
-		case 1:
 
-			Msg->KEYCODE2 = KEYCODE;
-			break;
-		
-
-		
-
-	}
-}
